@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:cool_dropdown/cool_dropdown.dart';
 import 'package:cool_dropdown/models/cool_dropdown_item.dart';
 import 'package:fast_charts/fast_charts.dart';
@@ -29,7 +30,7 @@ class _HomePageState extends State<HomePage> {
     final size = MediaQuery.of(context).size;
     final color = Theme.of(context).colorScheme;
 
-    print(selectedChart);
+    // print(selectedChart);
 
     return Scaffold(
       appBar: AppBar(
@@ -150,14 +151,20 @@ class _HomePageState extends State<HomePage> {
               padding: EdgeInsets.all(10),
               child: Consumer<ScansModel>(
                 builder: (context, scans, child) {
+                  //
                   Map<String, ({int count})> chartData = {};
                   for (final scan in scans.scans) {
                     int indexOfStar = scan.indexOf('*');
-                    chartData.putIfAbsent(scan.substring(0, indexOfStar), () => (count: 1));
-                    if (chartData.containsKey(scan.substring(0, indexOfStar))) {
-                      chartData.update(scan.substring(0, indexOfStar), (value) => (count: value.count + 1));
+                    String scanString = scan.substring(0, indexOfStar).toUpperCase();
+
+                    // Adding QR data to chart data
+                    chartData.putIfAbsent(scanString, () => (count: 0));
+                    if (chartData.containsKey(scanString)) {
+                      chartData.update(scanString, (value) => (count: value.count + 1));
                     }
                   }
+
+                  final random = Random(); // to randomize pie chart colors
 
                   return scans.scans.isEmpty
                       ? Center(heightFactor: 2, child: Image(image: AssetImage('assets/empty_state.png')))
@@ -165,6 +172,7 @@ class _HomePageState extends State<HomePage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // selecting a chart type
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
                                 child: Container(
@@ -187,9 +195,18 @@ class _HomePageState extends State<HomePage> {
                                             child: CoolDropdown(
                                               dropdownItemOptions: const DropdownItemOptions(isMarquee: true),
                                               dropdownList: [
-                                                CoolDropdownItem(label: 'Pie Chart', value: ChartType.pie),
-                                                CoolDropdownItem(label: 'Column Chart', value: ChartType.column),
-                                                CoolDropdownItem(label: 'Bar Chart', value: ChartType.bar),
+                                                CoolDropdownItem(
+                                                    label: 'Pie Chart',
+                                                    value: ChartType.pie,
+                                                    icon: Icon(Icons.pie_chart_rounded)),
+                                                CoolDropdownItem(
+                                                    label: 'Column Chart',
+                                                    value: ChartType.column,
+                                                    icon: Icon(Icons.align_vertical_bottom)),
+                                                CoolDropdownItem(
+                                                    label: 'Bar Chart',
+                                                    value: ChartType.bar,
+                                                    icon: Icon(Icons.align_horizontal_left)),
                                               ],
                                               controller: chartTypeC,
                                               onChange: (value) async {
@@ -200,7 +217,10 @@ class _HomePageState extends State<HomePage> {
 
                                                 setState(() => selectedChart = value);
                                               },
-                                              defaultItem: CoolDropdownItem(label: 'Pie Chart', value: ChartType.pie),
+                                              defaultItem: CoolDropdownItem(
+                                                  label: 'Pie Chart',
+                                                  value: ChartType.pie,
+                                                  icon: Icon(Icons.pie_chart_rounded)),
                                             ),
                                           ),
                                         ),
@@ -209,21 +229,26 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ),
                               ),
-                              Text(
-                                'Count',
-                                style: TextStyle(fontSize: 22, color: Colors.grey),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Text(
+                                  'Count',
+                                  style: TextStyle(fontSize: 22, color: Colors.grey),
+                                ),
                               ),
+
+                              // charts
                               if (selectedChart == ChartType.pie)
                                 SizedBox(
                                   height: size.height / 2,
                                   child: PieChart(
                                     data: Series(
                                       data: chartData,
-                                      colorAccessor: (domain, value) => Color(0xFF0E7AC7 * value.count),
+                                      colorAccessor: (domain, value) => Color((0xFF0E7AC7 * random.nextInt(1000))),
                                       measureAccessor: (value) => value.count.toDouble(),
                                       labelAccessor: (domain, value, percent) => ChartLabel(
                                         '$domain (${value.count})',
-                                        position: LabelPosition.outside,
+                                        // position: LabelPosition.outside,
                                         style: TextStyle(color: Theme.of(context).colorScheme.inverseSurface),
                                       ),
                                     ),
@@ -245,9 +270,11 @@ class _HomePageState extends State<HomePage> {
                                         data: chartData,
                                         colorAccessor: (domain, value) => Color(0xFF0E7AC7),
                                         measureAccessor: (value) => value.count.toDouble(),
+                                        labelAccessor: (domain, value, percent) => ChartLabel(value.count.toString()),
                                       ),
                                     ],
-                                    groupSpacing: 5,
+                                    padding: EdgeInsets.all(16),
+                                    groupSpacing: 20,
                                   ),
                                 ),
                               if (selectedChart == ChartType.bar)
@@ -260,13 +287,19 @@ class _HomePageState extends State<HomePage> {
                                         data: chartData,
                                         colorAccessor: (domain, value) => Color(0xFF0E7AC7),
                                         measureAccessor: (value) => value.count.toDouble(),
+                                        labelAccessor: (domain, value, percent) => ChartLabel(value.count.toString()),
                                       ),
                                     ],
+                                    padding: EdgeInsets.all(16),
+                                    groupSpacing: 20,
                                   ),
                                 ),
-                              Text(
-                                scans.scans.join(', '),
-                                style: TextStyle(fontSize: 20),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  scans.scans.join(', '),
+                                  style: TextStyle(fontSize: 20),
+                                ),
                               ),
                             ],
                           ),
@@ -311,6 +344,7 @@ Future<void> exportData(List<String> scans) async {
   await Share.shareFiles([path], text: 'MassQR Export');
 }
 
+// declaring chart types
 enum ChartType {
   pie,
   bar,
